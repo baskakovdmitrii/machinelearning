@@ -15,6 +15,7 @@ from sklearn.ensemble import AdaBoostRegressor
 from sklearn.ensemble import RandomForestRegressor
 from catboost import CatBoostRegressor
 from sklearn.linear_model import Ridge
+from sklearn.preprocessing import LabelEncoder
 
 df = pd.read_csv('American_Housing_Data.csv')
 
@@ -22,7 +23,7 @@ null_values = df.isnull().sum()
 print(null_values)
 mode_income = df['Median Household Income'].dropna().mode()[0]
 df['Median Household Income'] = df['Median Household Income'].fillna(mode_income)
-
+df.to_csv('American_Housing_Data_Without_All.csv', index=False)
 cat_cols = [col for col in df.columns if df[col].dtypes == 'object']
 num_cols = [col for col in df.columns if df[col].dtypes != 'object']
 print('Категориальные признаки:', cat_cols)
@@ -38,17 +39,17 @@ g = sns.heatmap(corr_matrix, cmap=sns.cubehelix_palette(as_cmap=True), annot = T
 sns.set(style='darkgrid')
 fig, axs = plt.subplots(3, 2, figsize=(15, 10))
 sns.histplot(df['Price'], bins=30, ax=axs[0, 0], kde=True)
-axs[0, 0].set_title('Price Distribution')
+axs[0, 0].set_title('Распределение цен')
 sns.countplot(x='Beds', data=df, ax=axs[0, 1])
-axs[0, 1].set_title('Beds Distribution')
+axs[0, 1].set_title('Распределение кроватей')
 sns.countplot(x='Baths', data=df, ax=axs[1, 0])
-axs[1, 0].set_title('Baths Distribution')
+axs[1, 0].set_title('Распределение ванных комнат')
 sns.histplot(df['Living Space'], bins=30, ax=axs[1, 1], kde=True)
-axs[1, 1].set_title('Living Space Distribution')
+axs[1, 1].set_title('Распределение жилого пространства')
 sns.histplot(df['Zip Code Population'], bins=30, ax=axs[2, 0], kde=True)
-axs[2, 0].set_title('Zip Code Population Distribution')
+axs[2, 0].set_title('Распределение населения по индексу')
 sns.histplot(df['Median Household Income'], bins=30, ax=axs[2, 1], kde=True)
-axs[2, 1].set_title('Median Household Income Distribution')
+axs[2, 1].set_title('Распределение среднего дохода семьи')
 plt.tight_layout()
 plt.show()
 
@@ -93,17 +94,6 @@ plt.tight_layout()
 plt.show()
 df_with_quantile_without_objects = pd.read_csv('American_Housing_Data_With_Quantile.csv')
 df_with_quantile_with_objects = pd.read_csv('American_Housing_Data_With_Quantile.csv')
-df_with_quantile_without_objects.drop('Address', axis=1, inplace=True)
-df_with_quantile_without_objects.drop('County', axis=1, inplace=True)
-df_with_quantile_without_objects.drop('City', axis=1, inplace=True)
-df_with_quantile_without_objects.drop('State', axis=1, inplace=True)
-df_with_quantile_without_objects.to_csv('American_Housing_Data_With_Quantile2.csv', index=False)
-plt.figure(figsize=(12, 6))
-sns.scatterplot(x='Living Space', y='Price', data=df, color='orange', alpha=1)
-plt.title('Взаимосвязь между пространством и стомостью')
-plt.xlabel('Жилое пространство')
-plt.ylabel('Стоимость')
-plt.show()
 
 plt.figure(figsize=(12, 6))
 sns.scatterplot(x='Median Household Income', y='Price', data=df, color='green', alpha=1)
@@ -125,24 +115,28 @@ df_with_quantile_with_objects.drop('Address', axis=1, inplace=True)
 df_with_quantile_with_objects.drop('County', axis=1, inplace=True)
 df_with_quantile_with_objects.drop('City', axis=1, inplace=True)
 
-
-df_with_binar = pd.get_dummies(df_with_quantile_with_objects, prefix=cat_cols)
-cat_cols2 = [col for col in df_with_binar.columns]
-print('cat_cols2',cat_cols2)
-df_with_binar_replaced = df_with_binar.replace({True: 1, False: 0})
-df_with_binar_replaced.to_csv('American_Housing_Data_With_Quantile_And_Binar.csv', index=False)
-
 df.drop('Address', axis=1, inplace=True)
 df.drop('County', axis=1, inplace=True)
 df.drop('City', axis=1, inplace=True)
 
+df_with_quantile_with_objects = pd.get_dummies(df, prefix=cat_cols)
+df_with_quantile_with_objects_replaced = df_with_quantile_with_objects.replace({True: 1, False: 0})
+df_with_quantile_with_objects_replaced.to_csv('American_Housing_Data_with_quantile_with_binar.csv', index=False)
 
-df_without_quantile_with_binar = pd.get_dummies(df, prefix=cat_cols)
-cat_cols3 = [col for col in df_without_quantile_with_binar.columns]
-print('cat_cols3',cat_cols3)
-df_without_quantile_with_binar_replaced = df_without_quantile_with_binar.replace({True: 1, False: 0})
-df_without_quantile_with_binar_replaced.to_csv('American_Housing_Data_without_quantile_with_binar.csv', index=False)
 
+le = LabelEncoder()
+for i in cat_cols:
+    df[f'{i}_encoded'] = le.fit_transform(df[f'{i}'])
+    df.drop(f'{i}', axis=1, inplace=True)
+    df.rename(columns={f'{i}_encoded': f'{i}'}, inplace=True)
+df.to_csv('American_Housing_Data_with_quantile_with_binar_labelEncoder.csv', index=False)
+df_with_quantile_with_binar_replaced_labelEncoder = pd.read_csv('American_Housing_Data_with_quantile_with_binar_labelEncoder.csv')
+
+df_without_all = pd.read_csv('American_Housing_Data_Without_All.csv')
+df_without_all.drop('Address', axis=1, inplace=True)
+df_without_all.drop('County', axis=1, inplace=True)
+df_without_all.drop('City', axis=1, inplace=True)
+df_without_all.drop('State', axis=1, inplace=True)
 def linear(data, scaler=None):
     X = data.drop('Price', axis=1)
     y = data['Price']
@@ -322,32 +316,28 @@ def random_forest(data,scaler = None):
     print('random_forest_Mean absolute error:', mean_absolute_error(y_test, y_pred))
 
 
-linear(df_without_quantile_with_binar_replaced,StandardScaler())
-linear(df_without_quantile_with_binar_replaced,MinMaxScaler())
-linear(df_without_quantile_with_binar_replaced)
+linear(df_without_all)
+linear(df_with_quantile_with_binar_replaced_labelEncoder,MinMaxScaler())
+linear(df_with_quantile_with_objects,MinMaxScaler())
+ridge(df_without_all)
+ridge(df_with_quantile_with_binar_replaced_labelEncoder,MinMaxScaler())
+ridge(df_with_quantile_with_objects,MinMaxScaler())
+catboost(df_without_all)
+catboost(df_with_quantile_with_binar_replaced_labelEncoder,MinMaxScaler())
+catboost(df_with_quantile_with_objects,MinMaxScaler())
 
-ridge(df_without_quantile_with_binar_replaced,StandardScaler())
-ridge(df_without_quantile_with_binar_replaced,MinMaxScaler())
-ridge(df_without_quantile_with_binar_replaced)
-catboost(df_without_quantile_with_binar_replaced,StandardScaler())
-catboost(df_without_quantile_with_binar_replaced,MinMaxScaler())
-catboost(df_without_quantile_with_binar_replaced)
+decision_tree(df_without_all)
+decision_tree(df_with_quantile_with_binar_replaced_labelEncoder,MinMaxScaler())
+decision_tree(df_with_quantile_with_objects,MinMaxScaler())
+knn(df_without_all)
+knn(df_with_quantile_with_binar_replaced_labelEncoder,MinMaxScaler())
+knn(df_with_quantile_with_objects,MinMaxScaler())
 
-decision_tree(df_without_quantile_with_binar_replaced,StandardScaler())
-decision_tree(df_without_quantile_with_binar_replaced,MinMaxScaler())
-decision_tree(df_without_quantile_with_binar_replaced)
-
-knn(df_without_quantile_with_binar_replaced,StandardScaler())
-knn(df_without_quantile_with_binar_replaced,MinMaxScaler())
-knn(df_without_quantile_with_binar_replaced)
-
-xgb(df_without_quantile_with_binar_replaced,StandardScaler())
-xgb(df_without_quantile_with_binar_replaced,MinMaxScaler())
-xgb(df_without_quantile_with_binar_replaced)
-
-
-random_forest(df_without_quantile_with_binar_replaced,StandardScaler())
-random_forest(df_without_quantile_with_binar_replaced,MinMaxScaler())
-random_forest(df_without_quantile_with_binar_replaced)
+xgb(df_without_all)
+xgb(df_with_quantile_with_binar_replaced_labelEncoder,MinMaxScaler())
+xgb(df_with_quantile_with_objects,MinMaxScaler())
+random_forest(df_without_all)
+random_forest(df_with_quantile_with_binar_replaced_labelEncoder,MinMaxScaler())
+random_forest(df_with_quantile_with_objects,MinMaxScaler())
 
 
